@@ -5,23 +5,24 @@
 
 #define INTERVALO 1.5
 
-double seno(double x, double y)
+double seno(long double x, long double y)
 {
     return sin(x * x + y * y);
 }
 
 double trapezio(int n_intervals_x, int n_intervals_y)
 {
-    double delta_x = INTERVALO / n_intervals_x;
-    double delta_y = INTERVALO / n_intervals_y;
-    double f = 0.0;
+long    double delta_x = INTERVALO / n_intervals_x;
+    long double delta_y = INTERVALO / n_intervals_y;
+    long double f = 0.0;
 
+    long double h = (delta_x * delta_y)/4.0;
 #pragma omp parallel reduction(+ : f)
     {
-        double local_sum = 0.0;
-        double x0, y0, x1, y1;
+        long double local_sum = 0.0;
+        long double x0, y0, x1, y1;
 
-#pragma omp for collapse(2) schedule(static)
+#pragma omp for schedule(dynamic)
         for (int i = 0; i < n_intervals_x; i++)
         {
             for (int j = 0; j < n_intervals_y; j++)
@@ -31,7 +32,8 @@ double trapezio(int n_intervals_x, int n_intervals_y)
                 x1 = (i + 1) * delta_x;
                 y1 = (j + 1) * delta_y;
 
-                local_sum += (delta_x * delta_y / 4.0) *
+
+                local_sum += h *
                              (seno(x0, y0) + seno(x1, y0) + seno(x0, y1) + seno(x1, y1));
             }
         }
@@ -52,6 +54,7 @@ int main(int argc, char *argv[])
 
     int n_intervals_x = atoi(argv[1]);
     int n_intervals_y = atoi(argv[2]);
+
     double start_time;
     double resultado;
     double end_time;
