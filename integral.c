@@ -4,50 +4,40 @@
 #include <math.h>
 
 #define INTERVALO 1.5
+#define NOME_ARQUIVO "resultados29.csv"
 
-double seno(long double x, long double y)
-{
+double seno(long double x, long double y) {
     return sin(x * x + y * y);
 }
 
-double trapezio(int n_intervals_x, int n_intervals_y)
-{
-long    double delta_x = INTERVALO / n_intervals_x;
-    long double delta_y = INTERVALO / n_intervals_y;
-    long double f = 0.0;
+double trapezio(int nx, int ny, int num_threads) {
+    double hx = INTERVALO / nx;
+    double hy = INTERVALO / ny;
+    double integral = 0.0;
 
-    long double h = (delta_x * delta_y)/4.0;
-#pragma omp parallel reduction(+ : f)
-    {
-        long double local_sum = 0.0;
-        long double x0, y0, x1, y1;
+    omp_set_num_threads(num_threads);
 
-#pragma omp for schedule(dynamic)
-        for (int i = 0; i < n_intervals_x; i++)
-        {
-            for (int j = 0; j < n_intervals_y; j++)
-            {
-                x0 = i * delta_x;
-                y0 = j * delta_y;
-                x1 = (i + 1) * delta_x;
-                y1 = (j + 1) * delta_y;
+#pragma omp parallel for reduction(+:integral)
+    for (int i = 0; i <= nx; i++) {
+        double x = i * hx;
+        for (int j = 0; j <= ny; j++) {
+            double y = j * hy;
+            double peso = 1.0;
 
+            if (i == 0 || i == nx) peso *= 0.5;
+            if (j == 0 || j == ny) peso *= 0.5;
 
-                local_sum += h *
-                             (seno(x0, y0) + seno(x1, y0) + seno(x0, y1) + seno(x1, y1));
-            }
+            integral += peso * seno(x, y);
         }
-
-        f += local_sum;
     }
 
-    return f;
+    integral *= hx * hy;
+    return integral;
 }
 
-int main(int argc, char *argv[])
-{
-    if (argc != 3)
-    {
+int main(int argc, char *argv[]) {
+    FILE *fp = fopen(NOME_ARQUIVO, "a");
+    if (argc != 3) {
         printf("Uso: %s <n_intervals_x> <n_intervals_y>\n", argv[0]);
         return 1;
     }
@@ -58,26 +48,27 @@ int main(int argc, char *argv[])
     double start_time;
     double resultado;
     double end_time;
+    int num_threads = 1;
 
     char *env_threads = getenv("OMP_NUM_THREADS");
-    if (env_threads != NULL)
-    {
-        int num_threads = atoi(env_threads);
-        omp_set_num_threads(num_threads);
+    if (env_threads != NULL) {
+        num_threads = atoi(env_threads);
         printf("Número de threads: %d\n", num_threads);
-    }
-    else
-    {
+    } else
         printf("Variável de ambiente OMP_NUM_THREADS não definida. Usando 1 thread.\n");
-        omp_set_num_threads(1);
+
+    fseek(fp, 0, SEEK_END);
+    if (ftell(fp) == 0) {
+        fprintf(fp, "threads,intervalo_x,intervalo_y,resultado,tempo\n");
     }
 
     start_time = omp_get_wtime();
-    resultado = trapezio(n_intervals_x, n_intervals_y);
+    resultado = trapezio(n_intervals_x, n_intervals_y, num_threads);
     end_time = omp_get_wtime();
 
     printf("Resultado com %d intervalos em x e %d intervalos em y: %.10f\n", n_intervals_x, n_intervals_y, resultado);
     printf("Tempo de execução: %.6f segundos\n", end_time - start_time);
-
+    fprintf(fp, "%d,%d,%d,%.10f,%.6f\n", num_threads, n_intervals_x, n_intervals_y, resultado, end_time - start_time);
+    fclose(fp);
     return 0;
 }

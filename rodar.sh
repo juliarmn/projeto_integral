@@ -1,8 +1,11 @@
 #!/bin/bash
 
+gcc integral.c -o p -lm -fopenmp
+
 THREADS=(1 2 4 8)
 INTERVALS_X=(1000 10000 100000)
 INTERVALS_Y=(1000 10000 100000)
+
 
 for threads in "${THREADS[@]}"; do
     for n_intervals_x in "${INTERVALS_X[@]}"; do
